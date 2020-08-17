@@ -22,5 +22,18 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+'use strict';
+
+var configElement = document.getElementById('config');
+
+window.httpRoot = configElement.getAttribute('httpRoot');
+window.staticRoot = configElement.getAttribute('staticRoot');
+
+var extraOptions = JSON.parse(decodeURIComponent(configElement.getAttribute('extraOptions')));
+for (var k in extraOptions) {
+    window.compilerExplorerOptions[k] = extraOptions[k];
+}
+
+__webpack_public_path__ = window.staticRoot;
+
 module.exports = window.compilerExplorerOptions;

@@ -23,40 +23,54 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const chai = require('chai'),
-    healthCheck = require('../../lib/handlers/health-check'),
+    CompilationQueue = require('../../lib/compilation-queue'),
+    HealthCheckHandler = require('../../lib/handlers/health-check').HealthCheckHandler,
     express = require('express'),
     mockfs = require('mock-fs');
 
-chai.use(require("chai-http"));
+chai.use(require('chai-http'));
 chai.should();
 
 describe('Health checks', () => {
-    const app = express();
-    app.use('/hc', new healthCheck.HealthCheckHandler().handle);
+    let app;
+    let compilationQueue;
 
-    it('should respond with OK', () => {
-        return chai.request(app)
-            .get('/hc')
-            .then(res => {
-                res.should.have.status(200);
-                res.text.should.be.eql('Everything is awesome');
-            })
-            .catch(function (err) {
-                throw err;
-            });
+    beforeEach(() => {
+        compilationQueue = new CompilationQueue(1);
+        app = express();
+        app.use('/hc', new HealthCheckHandler(compilationQueue).handle);
+    });
+
+    it('should respond with OK', async () => {
+        const res = await chai.request(app).get('/hc');
+        res.should.have.status(200);
+        res.text.should.be.eql('Everything is awesome');
+    });
+
+    it('should use compilation queue', async () => {
+        let count = 0;
+        compilationQueue._queue.on('active', () => {
+            count++;
+        });
+        await chai.request(app).get('/hc');
+        count.should.be.eql(1);
     });
 });
 
 describe('Health checks on disk', () => {
-    const app = express();
-    app.use('/hc', new healthCheck.HealthCheckHandler('/fake/.nonexist').handle);
-    app.use('/hc2', new healthCheck.HealthCheckHandler('/fake/.health').handle);
+    let app;
 
     before(() => {
+        const compilationQueue = new CompilationQueue(1);
+
+        app = express();
+        app.use('/hc', new HealthCheckHandler(compilationQueue, '/fake/.nonexist').handle);
+        app.use('/hc2', new HealthCheckHandler(compilationQueue, '/fake/.health').handle);
+
         mockfs({
             '/fake': {
-                '.health': 'Everything is fine'
-            }
+                '.health': 'Everything is fine',
+            },
         });
     });
 
@@ -64,25 +78,15 @@ describe('Health checks on disk', () => {
         mockfs.restore();
     });
 
-    it('should respond with 500 when file not found', () => {
-        return chai.request(app)
-            .get('/hc')
-            .then(res => res.should.have.status(500))
-            .catch(function (err) {
-                throw err;
-            });
+    it('should respond with 500 when file not found', async () => {
+        const res = await chai.request(app).get('/hc');
+        res.should.have.status(500);
     });
 
 
-    it('should respond with OK and file contents when found', () => {
-        return chai.request(app)
-            .get('/hc2')
-            .then(res => {
-                res.should.have.status(200);
-                res.text.should.be.eql('Everything is fine');
-            })
-            .catch(function (err) {
-                throw err;
-            });
+    it('should respond with OK and file contents when found', async () => {
+        const res = await chai.request(app).get('/hc2');
+        res.should.have.status(200);
+        res.text.should.be.eql('Everything is fine');
     });
 });

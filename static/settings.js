@@ -22,7 +22,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+'use strict';
 var $ = require('jquery');
 var _ = require('underscore');
 var colour = require('./colour');
@@ -55,7 +55,7 @@ Checkbox.prototype.putUi = function (elem, value) {
 function Select(elem, populate) {
     elem.empty();
     _.each(populate, function (e) {
-        elem.append($('<option value="' + e.label + '">' + e.desc + "</option>"));
+        elem.append($('<option value="' + e.label + '">' + e.desc + '</option>'));
     });
 }
 
@@ -89,7 +89,28 @@ Textbox.prototype.putUi = function (elem, value) {
     elem.val(value);
 };
 
+function Numeric(elem, params) {
+    this.min = params.min;
+    this.max = params.max;
+    elem.attr('min', params.min)
+        .attr('max', params.max);
+}
 
+Numeric.prototype.getUi = function (elem) {
+    var val = parseInt(elem.val());
+    if (val < this.min) return this.min;
+    if (val > this.max) return this.max;
+    return val;
+};
+
+Numeric.prototype.putUi = function (elem, value) {
+    if (value < this.min) value = this.min;
+    if (value > this.max) value = this.max;
+    elem.val(value);
+};
+
+// Ignore max statements, there's no limit as to how many settings we need
+// eslint-disable-next-line max-statements
 function setupSettings(root, settings, onChange, subLangId) {
     settings = settings || {};
     // Ensure the default language is not "null" but undefined. Temporary patch for a previous bug :(
@@ -136,8 +157,8 @@ function setupSettings(root, settings, onChange, subLangId) {
         step: 250,
         min: 250,
         formatter: function (x) {
-            return (x / 1000.0).toFixed(2) + "s";
-        }
+            return (x / 1000.0).toFixed(2) + 's';
+        },
     });
     add(root.find('.enableCommunityAds'), 'enableCommunityAds', true, Checkbox);
     add(root.find('.hoverShowSource'), 'hoverShowSource', true, Checkbox);
@@ -171,7 +192,7 @@ function setupSettings(root, settings, onChange, subLangId) {
             if (!scheme.themes || scheme.themes.length === 0 || scheme.themes.indexOf(newTheme) !== -1 ||
                 scheme.themes.indexOf('all') !== -1) {
 
-                colourSchemeSelect.append($('<option value="' + scheme.name + '">' + scheme.desc + "</option>"));
+                colourSchemeSelect.append($('<option value="' + scheme.name + '">' + scheme.desc + '</option>'));
                 if (newThemeStoredScheme === scheme.name) {
                     isStoredUsable = true;
                 }
@@ -182,7 +203,7 @@ function setupSettings(root, settings, onChange, subLangId) {
         } else {
             // This should never happen. In case it does, lets use the default one
             colourSchemeSelect.append(
-                $('<option value="' + colour.schemes[0].name + '">' + colour.schemes[0].desc + "</option>"));
+                $('<option value="' + colour.schemes[0].name + '">' + colour.schemes[0].desc + '</option>'));
             colourSchemeSelect.val(colourSchemeSelect.first().val());
         }
         colourSchemeSelect.trigger('change');
@@ -206,7 +227,7 @@ function setupSettings(root, settings, onChange, subLangId) {
 
     add(root.find('.newEditorLastLang'), 'newEditorLastLang', true, Checkbox);
 
-    var formats = ["Google", "LLVM", "Mozilla", "Chromium", "WebKit"];
+    var formats = ['Google', 'LLVM', 'Mozilla', 'Chromium', 'WebKit'];
     add(root.find('.formatBase'), 'formatBase', formats[0], Select,
         _.map(formats, function (format) {
             return {label: format, desc: format};
@@ -218,16 +239,15 @@ function setupSettings(root, settings, onChange, subLangId) {
         onSettingsChange(settings);
         onChange(settings);
     }
-
-    add(root.find('.tabWidth'), 'tabWidth', 4, Select,
-        _.map([2, 4, 8], function (size) {
-            return {label: size, desc: size};
-        })
-    );
+    add(root.find('.useSpaces'), 'useSpaces', true, Checkbox);
+    add(root.find('.tabWidth'), 'tabWidth', 4, Numeric, {min: 1, max: 80});
     add(root.find('.enableCtrlS'), 'enableCtrlS', true, Checkbox);
     add(root.find('.editorsFFont'), 'editorsFFont', 'Consolas, "Liberation Mono", Courier, monospace', Textbox);
+    add(root.find('.editorsFLigatures'), 'editorsFLigatures', false, Checkbox);
     add(root.find('.allowStoreCodeDebug'), 'allowStoreCodeDebug', true, Checkbox);
     add(root.find('.useVim'), 'useVim', false, Checkbox);
+    add(root.find('.autoIndent'), 'autoIndent', true, Checkbox);
+    add(root.find('.keepSourcesOnLangChange'), 'keepSourcesOnLangChange', false, Checkbox);
 
     setSettings(settings);
     handleThemes();

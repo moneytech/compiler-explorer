@@ -3,45 +3,28 @@ const path = require('path'),
     CopyWebpackPlugin = require('copy-webpack-plugin'),
     MiniCssExtractPlugin = require('mini-css-extract-plugin'),
     ManifestPlugin = require('webpack-manifest-plugin'),
-    glob = require("glob"),
-    UglifyJsPlugin = require('uglifyjs-webpack-plugin'),
+    TerserPlugin = require('terser-webpack-plugin'),
+    OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin'),
     MonacoEditorWebpackPlugin = require('monaco-editor-webpack-plugin');
 
-const isDev = process.env.NODE_ENV === "DEV";
+const isDev = process.env.NODE_ENV !== "production";
 
-const outputPathRelative = 'dist/';
-const staticRelative = 'static/';
-const staticPath = path.resolve(__dirname, staticRelative);
-const distPath = path.join(staticPath, outputPathRelative);
-const assetPath = path.join(staticPath, "assets");
-const manifestPath = 'manifest.json';  //if you change this, you also need to update it in the app.js
-const outputName = isDev ? '[name].js' : '[name].[chunkhash].js';
-const cssName = isDev ? '[name].css' : "[name].[contenthash].css";
-const publicPath = isDev ? '/dist/' : 'dist/';
-const manifestPlugin = new ManifestPlugin({
-    fileName: manifestPath,
-    publicPath: './'
-});
+const distPath = path.resolve(__dirname, 'out', 'dist');
+const staticPath = path.join(distPath, 'static');
 
-
-const assetEntries = glob.sync(`${assetPath}/**/*.*`).reduce((obj, p) => {
-    const key = path.basename(p);
-    obj[key] = p;
-    return obj;
-}, {});
-
-let plugins = [
+// Hack alert: due to a variety of issues, sometimes we need to change
+// the name here. Mostly it's things like webpack changes that affect
+// how minification is done, even though that's supposed not to matter.
+const webjackJsHack = ".v3.";
+const plugins = [
     new MonacoEditorWebpackPlugin({
-        languages: ['cpp', 'go', 'rust', 'swift']
+        languages: [ 'cpp', 'go', 'pascal', 'python', 'rust', 'swift' ],
+        filename: isDev ? '[name].worker.js' : `[name]${webjackJsHack}worker.[contenthash].js`
     }),
     new CopyWebpackPlugin([
         {
-            from: path.join(staticPath, "favicon.ico"),
-            to: distPath
-        },
-        {
             from: 'node_modules/es6-shim/es6-shim.min.js',
-            to: distPath
+            to: staticPath
         }
     ]),
     new webpack.ProvidePlugin({
@@ -49,109 +32,87 @@ let plugins = [
         jQuery: 'jquery'
     }),
     new MiniCssExtractPlugin({
-        filename: cssName
-
+        filename: isDev ? '[name].css' : '[name].[contenthash].css'
     }),
-    manifestPlugin
+    new ManifestPlugin({
+        fileName: path.join(distPath, 'manifest.json'),
+        publicPath: ''
+    })
 ];
 
-module.exports = [
-    //if you change the order of this, make sure to update the config variable in app.js
-    //server side stuff
-    // currently we just want to shove a cache path onto the static assets so we can get the hash onto the filename
-    //this means we can set the cache for eternity
-    {
-        mode: isDev ? 'development' : 'production',
-        entry: assetEntries,
-        output: {
-            path: path.join(distPath, 'assets'),
-            filename: '.[name].ignoreme'
-        },
-        module: {
-            rules: [
-                {
-                    test: /\.(png|woff|woff2|eot|ttf|svg)$/,
-                    use: [{
-                        loader: 'file-loader',
-                        options: {
-                            name: '[name].[hash].[ext]'
-                        }
-                    }]
-                }
-            ]
-        },
-        plugins: [
-            manifestPlugin
-        ]
+module.exports = {
+    mode: isDev ? 'development' : 'production',
+    entry: './static/main.js',
+    output: {
+        filename: isDev ? '[name].js' : `[name]${webjackJsHack}[contenthash].js`,
+        path: staticPath
     },
-    //this is the client side
-    {
-        mode: isDev ? 'development' : 'production',
-        entry: './static/main.js',
-        output: {
-            filename: outputName,
-            path: distPath,
-            publicPath: publicPath
+    resolve: {
+        alias: {
+            'monaco-editor$': 'monaco-editor/esm/vs/editor/editor.api'
         },
-        resolve: {
-            modules: ['./static', "./node_modules"],
-            alias: {
-                //is this safe?
-                goldenlayout: path.resolve(__dirname, 'node_modules/golden-layout/'),
-                lzstring: path.resolve(__dirname, 'node_modules/lz-string/'),
-                filesaver: path.resolve(__dirname, 'node_modules/file-saver/')
+        modules: ['./static', './node_modules']
+    },
+    stats: 'normal',
+    devtool: 'source-map',
+    optimization: {
+        runtimeChunk: 'single',
+        splitChunks: {
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendor',
+                    chunks: 'all',
+                    priority: -10,
+                }
             }
         },
-        stats: "normal",
-        devtool: 'source-map',
-        optimization: {
-            minimize: !isDev,
-            minimizer: [new UglifyJsPlugin({
+        moduleIds: 'hashed',
+        minimizer: [
+            new OptimizeCssAssetsPlugin({
+                cssProcessorPluginOptions: {
+                    preset: ['default', { discardComments: { removeAll: true } }],
+                }
+            }),
+            new TerserPlugin({
                 parallel: true,
                 sourceMap: true,
-                uglifyOptions: {
-                    output: {
-                        comments: false,
-                        beautify: false
-                    }
+                terserOptions: {
+                    ecma: 5
                 }
-            })]
-        },
-        module: {
-            rules: [
-                {
-                    test: /\.css$/,
-                    exclude: path.resolve(__dirname, 'static/themes/'),
-                    use: [
-                        {
-                            loader: MiniCssExtractPlugin.loader,
-                            options: {
-                                publicPath: './',
-                                hmr: isDev
-                            }
-                        },
-                        'css-loader'
-                    ]
-                },
-                {
-                    test: /\.css$/,
-                    include: path.resolve(__dirname, 'static/themes/'),
-                    use: ['css-loader']
-                },
-                {
-                    test: /\.(png|woff|woff2|eot|ttf|svg)$/,
-                    loader: 'url-loader?limit=8192'
-                },
-                {
-                    test: /\.(html)$/,
-                    loader: 'html-loader',
-                    options: {
-                        minimize: !isDev
-                    }
-                }
-            ]
-        },
-        plugins: plugins
-    }
-
-];
+            })
+        ]
+    },
+    module: {
+        rules: [
+            {
+                test: /\.css$/,
+                exclude: path.resolve(__dirname, 'static/themes/'),
+                use: [
+                    {
+                        loader: MiniCssExtractPlugin.loader,
+                        options: {
+                            publicPath: './',
+                            hmr: isDev
+                        }
+                    },
+                    'css-loader'
+                ]
+            },
+            {
+                test: /\.css$/,
+                include: path.resolve(__dirname, 'static/themes/'),
+                loader: 'css-loader'
+            },
+            {
+                test: /\.(png|woff|woff2|eot|ttf|svg)$/,
+                loader: 'url-loader?limit=8192'
+            },
+            {
+                test: /\.(html)$/,
+                loader: 'html-loader'
+            }
+        ]
+    },
+    plugins: plugins
+};

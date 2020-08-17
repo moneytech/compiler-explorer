@@ -23,24 +23,25 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const LLVMmcaTool = require('../lib/compilers/llvm-mca');
-const CompilationEnvironment = require('../lib/compilation-env');
-const properties = require('../lib/properties');
+const {makeCompilationEnvironment} = require('./utils');
 require('chai').should();
 
 const languages = {
-    analysis: {id: 'analysis'}
+    analysis: {id: 'analysis'},
 };
 
-const compilerProps = new properties.CompilerProps(languages, properties.fakeProps({}));
-
 describe('LLVM-mca tool definition', () => {
-    const ce = new CompilationEnvironment(compilerProps);
-    const info = {
-        exe: null,
-        remote: true,
-        lang: languages.analysis.id
-    };
-    const a = new LLVMmcaTool(info, ce);
+    let ce, a;
+
+    before(() => {
+        ce = makeCompilationEnvironment({languages});
+        const info = {
+            exe: null,
+            remote: true,
+            lang: languages.analysis.id,
+        };
+        a = new LLVMmcaTool(info, ce);
+    });
 
     it('should have most filters disabled', () => {
         a.compiler.disabledFilters.should.be.deep.equal(['labels', 'directives', 'commentOnly', 'trim']);
@@ -68,8 +69,8 @@ describe('LLVM-mca tool definition', () => {
         const info = {
             exe: null,
             remote: true,
-            lang: "analysis",
-            disabledFilters: 'labels,directives'
+            lang: 'analysis',
+            disabledFilters: 'labels,directives',
         };
         const a = new LLVMmcaTool(info, ce);
         a.compiler.disabledFilters.should.be.deep.equal(['labels', 'directives']);

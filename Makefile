@@ -3,7 +3,8 @@ default: run
 help: # with thanks to Ben Rady
 	@grep -E '^[0-9a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-export XZ_OPT=-1 -T 0
+export XZ_OPT := -1 -T 0
+export SENTRY_ORG := compiler-explorer
 
 # If you see "node-not-found" then you need to depend on node-installed.
 NODE:=node-not-found
@@ -21,7 +22,7 @@ NPM:=npm-not-found
 node-installed: .node-bin
 	@$(eval NODE:=$(shell cat .node-bin))
 	@$(eval NPM:=$(shell dirname $(shell cat .node-bin))/npm)
-	@$(eval PATH=$(shell dirname $(realpath $(NODE))):${PATH})
+	@$(eval PATH=$(shell dirname $(realpath $(NODE))):$(PATH))
 
 info: node-installed ## print out some useful variables
 	@echo Using node from $(NODE)
@@ -29,19 +30,28 @@ info: node-installed ## print out some useful variables
 	@echo PATH is $(PATH)
 
 .PHONY: clean run test run-amazon
-.PHONY: dist lint prereqs node_modules travis-dist
-prereqs: node_modules webpack
+.PHONY: dist lint lint-fix ci-lint prereqs node_modules travis-dist check pre-commit
+prereqs: node_modules
 
 NODE_MODULES=.npm-updated
 $(NODE_MODULES): package.json | node-installed
-	$(NPM) install $(NPM_FLAGS)
+	$(NPM) install --only=prod $(NPM_FLAGS)
+	$(NPM) install --only=dev $(NPM_FLAGS)
 	@touch $@
 
+WEBPACK:=./node_modules/webpack-cli/bin/cli.js
 webpack: $(NODE_MODULES)  ## Runs webpack (useful only for debugging webpack)
-	$(NODE) node_modules/webpack-cli/bin/cli.js ${WEBPACK_ARGS}
+	rm -rf out/dist/static out/dist/manifest.json
+	$(WEBPACK) $(WEBPACK_ARGS)
 
-lint: $(NODE_MODULES)  ## Ensures everything matches code conventions
+lint: $(NODE_MODULES)  ## Checks if the source currently matches code conventions
 	$(NPM) run lint
+
+lint-fix: $(NODE_MODULES)  ## Checks if everything matches code conventions & fixes those which are trivial to do so
+	$(NPM) run lint-fix
+
+ci-lint: $(NODE_MODULES)
+	$(NPM) run ci-lint
 
 node_modules: $(NODE_MODULES)
 webpack: $(WEBPACK)
@@ -50,41 +60,49 @@ test: $(NODE_MODULES)  ## Runs the tests
 	$(NPM) run test
 	@echo Tests pass
 
-check: $(NODE_MODULES) test lint  ## Runs all checks required before committing
+check: $(NODE_MODULES) test lint  ## Runs all checks required before committing (fixing trivial things automatically)
+pre-commit: $(NODE_MODULES) test ci-lint
 
 clean:  ## Cleans up everything
-	rm -rf node_modules .*-updated .*-bin out static/dist static/vs
+	rm -rf node_modules .*-updated .*-bin out
 
-run: export NODE_ENV=LOCAL WEBPACK_ARGS="-p"
-run: prereqs  ## Runs the site normally
-	$(NODE) ./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties' --exec $(NODE) $(NODE_ARGS) -- ./app.js $(EXTRA_ARGS)
+# Don't use $(NODE) ./node_modules/<path to node_module> as sometimes that's not actually a node script. Instead, rely
+# on PATH ensuring "node" is found in our distribution first.
+run: export NODE_ENV=production
+run: export WEBPACK_ARGS="-p"
+run: prereqs webpack  ## Runs the site normally
+	./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties|yaml' --exec $(NODE) $(NODE_ARGS) -- ./app.js $(EXTRA_ARGS)
 
-dev: export NODE_ENV=DEV
+dev: export NODE_ENV=development
 dev: prereqs install-git-hooks ## Runs the site as a developer; including live reload support and installation of git hooks
-	$(NODE) ./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties' --exec $(NODE) $(NODE_ARGS) -- ./app.js $(EXTRA_ARGS)
+	./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties|yaml' --exec $(NODE) $(NODE_ARGS) -- ./app.js $(EXTRA_ARGS)
 
-debug: export NODE_ENV=DEV
+debug: export NODE_ENV=development
 debug: prereqs install-git-hooks ## Runs the site as a developer with full debugging; including live reload support and installation of git hooks
-	$(NODE) ./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties' --exec $(NODE) $(NODE_ARGS) -- ./app.js --debug $(EXTRA_ARGS)
+	./node_modules/.bin/supervisor -w app.js,lib,etc/config -e 'js|node|properties|yaml' --exec $(NODE) $(NODE_ARGS) -- ./app.js --debug $(EXTRA_ARGS)
 
 HASH := $(shell git rev-parse HEAD)
+dist: export NODE_ENV=production
 dist: export WEBPACK_ARGS=-p
-dist: prereqs  ## Creates a distribution
-	rm -rf out/dist/
-	mkdir -p out/dist
-	cp -r static/dist/ out/dist/
-	cp -r static/policies/ out/dist/
-	echo ${HASH} > out/dist/git_hash
+dist: prereqs webpack  ## Creates a distribution
+	echo $(HASH) > out/dist/git_hash
 
+SENTRY := ./node_modules/.bin/sentry-cli
 travis-dist: dist  ## Creates a distribution as if we were running on travis
-	tar --exclude './.travis-compilers' --exclude './.git' --exclude './static' --exclude './.github' --exclude './.idea' --exclude './.nyc_output' --exclude './coverage' --exclude './test' --exclude './docs' -Jcf /tmp/ce-build.tar.xz .
+	echo $(TRAVIS_BUILD_NUMBER) > out/dist/travis_build
 	rm -rf out/dist-bin
 	mkdir -p out/dist-bin
-	mv /tmp/ce-build.tar.xz out/dist-bin/${TRAVIS_BUILD_NUMBER}.tar.xz
-	echo ${HASH} > out/dist-bin/${TRAVIS_BUILD_NUMBER}.txt
+	tar -Jcf out/dist-bin/$(TRAVIS_BUILD_NUMBER).tar.xz -T travis-dist-files.txt
+	tar -Jcf out/dist-bin/$(TRAVIS_BUILD_NUMBER).static.tar.xz --transform="s,^out/dist/static/,," out/dist/static/*
+	echo $(HASH) > out/dist-bin/$(TRAVIS_BUILD_NUMBER).txt
+	du -ch out/**/*
+	# Create and set commits for a sentry release if and only if we have the secure token set
+	# External GitHub PRs etc won't have the variable set.
+	@[ -z "$(SENTRY_AUTH_TOKEN)" ] || $(SENTRY) releases new -p compiler-explorer $(TRAVIS_BUILD_NUMBER)
+	@[ -z "$(SENTRY_AUTH_TOKEN)" ] || $(SENTRY) releases set-commits --auto $(TRAVIS_BUILD_NUMBER)
 
 install-git-hooks:  ## Install git hooks that will ensure code is linted and tests are run before allowing a check in
-	ln -sf $(shell pwd)/etc/scripts/pre-commit .git/hooks/pre-commit
+	ln -sf $(shell pwd)/etc/scripts/pre-commit  $(shell git rev-parse --git-dir)/hooks/pre-commit
 .PHONY: install-git-hooks
 
 changelog:  ## Create the changelog

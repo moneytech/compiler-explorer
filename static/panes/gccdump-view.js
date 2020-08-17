@@ -49,10 +49,10 @@ function GccDump(hub, container, state) {
         fixedOverflowWidgets: true,
         fontFamily: 'Consolas, "Liberation Mono", Courier, monospace',
         minimap: {
-            maxColumn: 80
+            maxColumn: 80,
         },
         lineNumbersMinChars: 3,
-        dropdownParent: 'body'
+        dropdownParent: 'body',
     });
 
     this.initButtons(state);
@@ -63,7 +63,7 @@ function GccDump(hub, container, state) {
         labelField: 'name',
         searchField: ['name'],
         options: [],
-        items: []
+        items: [],
     });
 
     this.selectize = selectize[0].selectize;
@@ -74,6 +74,9 @@ function GccDump(hub, container, state) {
     this.state._compilerid = state._compilerid;
     this.state._editorid = state._editorid;
     this._compilerName = state._compilerName;
+
+    this.awaitingInitialResults = false;
+    this.selection = state.selection;
 
     this.initCallbacks();
 
@@ -98,7 +101,7 @@ function GccDump(hub, container, state) {
     ga.proxy('send', {
         hitType: 'event',
         eventCategory: 'OpenViewPane',
-        eventAction: 'GccDump'
+        eventAction: 'GccDump',
     });
 }
 
@@ -127,6 +130,12 @@ GccDump.prototype.initCallbacks = function () {
 
     this.container.on('resize', this.resize, this);
     this.container.on('shown', this.resize, this);
+
+    this.cursorSelectionThrottledFunction =
+        _.throttle(_.bind(this.onDidChangeCursorSelection, this), 500);
+    this.gccDumpEditor.onDidChangeCursorSelection(_.bind(function (e) {
+        this.cursorSelectionThrottledFunction(e);
+    }, this));
 };
 
 // Disable view's menu when invalid compiler has been
@@ -157,7 +166,7 @@ GccDump.prototype.resize = function () {
     var topBarHeight = this.topBar.outerHeight(true);
     this.gccDumpEditor.layout({
         width: this.domRoot.width(),
-        height: this.domRoot.height() - topBarHeight
+        height: this.domRoot.height() - topBarHeight,
     });
 };
 
@@ -178,7 +187,7 @@ GccDump.prototype.updatePass = function (filters, selectize, gccDumpOutput) {
 
     _.each(passes, function (p) {
         selectize.addOption({
-            name: p
+            name: p,
         });
     }, this);
 
@@ -240,6 +249,15 @@ GccDump.prototype.setTitle = function () {
 
 GccDump.prototype.showGccDumpResults = function (results) {
     this.gccDumpEditor.setValue(results);
+
+    if (!this.awaitingInitialResults) {
+        if (this.selection) {
+            this.gccDumpEditor.setSelection(this.selection);
+            this.gccDumpEditor.revealLinesInCenter(this.selection.startLineNumber,
+                this.selection.endLineNumber);
+        }
+        this.awaitingInitialResults = true;
+    }
 };
 
 GccDump.prototype.onCompiler = function (id, compiler, options, editorid) {
@@ -286,7 +304,8 @@ GccDump.prototype.currentState = function () {
         _editorid: this.state._editorid,
         selectedPass: this.state.selectedPass,
         treeDump: filters.treeDump,
-        rtlDump: filters.rtlDump
+        rtlDump: filters.rtlDump,
+        selection: this.selection,
     };
 };
 
@@ -294,10 +313,18 @@ GccDump.prototype.onSettingsChange = function (newSettings) {
     this.gccDumpEditor.updateOptions({
         contextmenu: newSettings.useCustomContextMenu,
         minimap: {
-            enabled: newSettings.showMinimap
+            enabled: newSettings.showMinimap,
         },
-        fontFamily: newSettings.editorsFFont
+        fontFamily: newSettings.editorsFFont,
+        fontLigatures: newSettings.editorsFLigatures,
     });
+};
+
+GccDump.prototype.onDidChangeCursorSelection = function (e) {
+    if (this.awaitingInitialResults) {
+        this.selection = e.selection;
+        this.saveState();
+    }
 };
 
 GccDump.prototype.close = function () {
@@ -307,5 +334,5 @@ GccDump.prototype.close = function () {
 };
 
 module.exports = {
-    GccDump: GccDump
+    GccDump: GccDump,
 };

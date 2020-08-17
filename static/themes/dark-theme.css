@@ -104,7 +104,7 @@ a.navbar-brand img.logo.normal {
 }
 
 .linked-code-decoration-line {
-    background: rgb(40, 80, 116) !important;
+    background: rgb(26, 53, 76) !important;
 }
 
 .linked-code-decoration-inline {
@@ -140,7 +140,7 @@ a.navbar-brand img.logo.normal {
 
 .selectize-dropdown {
     color: #f2f2f2 !important;
-    background-color: #666 !important;
+    background-color: #303030 !important;
 }
 
 .selectize-control.single .selectize-input.disabled {
@@ -153,31 +153,14 @@ a.navbar-brand img.logo.normal {
     background-color: #303030 !important;
 }
 
-.dropdown-menu li a {
-    color: #f2f2f2 !important;
-}
-
-.dropdown-menu li a:hover {
-    background-color: #333 !important;
-    color: #fff !important;
-}
-
-.font-option {
+.dropdown-item {
     color: #eee !important;
-    background: #303030 !important;
+    background-color: #303030;
 }
 
-.font-option:hover {
+.dropdown-item:hover {
     color: #fff !important;
-    background: #887788 !important;
-}
-
-.font-option-active {
-    background: #474747 !important;
-}
-
-.font-option-active:hover {
-    background: #998899 !important;
+    background-color: #23272b !important;
 }
 
 .notification {
@@ -211,6 +194,10 @@ pre.content {
     background-color: #1e1e1e !important;
 }
 
+pre.content.compiling {
+    background-color: #101010 !important;
+}
+
 .bottom-bar {
     color: #aaa !important;
     background-color: #333 !important;
@@ -232,24 +219,30 @@ input {
 
 .btn-light {
     color: #e2e2e2 !important;
-    background-color: #474747 !important;
-    border-color: #272727 !important;
-}
-
-.btn-light:hover {
-    background-color: #383838 !important;
+    background-color: #333 !important;
+    border-color: #333 !important;
 }
 
 .btn-light.active {
-    color: #f2f2f2 !important;
+    background-color: #235765 !important;
+    color: #fff !important;
+}
+
+.btn-light.active:hover {
+    background-color: #998899 !important;
+}
+
+.btn-light:hover {
+    background-color: #23272b !important;
 }
 
 .btn-light:disabled {
-    color: #aaa !important;
+    background-color: #575757 !important;
+    color: #fff !important;
 }
 
 .btn-light:disabled:hover {
-    background-color: #474747 !important;
+    background-color: #575757 !important;
 }
 
 .top-bar.btn-toolbar.bg-light {
@@ -261,7 +254,8 @@ input {
 }
 
 .card {
-    background-color: #474747 !important;
+    background-color: #1e1e1e !important;
+    color: #f2f2f2 !important;
 }
 
 .analysis,
@@ -308,18 +302,11 @@ input {
 }
 
 .popover {
-    color: #f2f2f2 !important;
-    background-color: #a1a1a1;
     border-color: #464545 !important;
 }
 
-.popover-header {
-    background-color: #929292 !important;
-    color: #000000 !important;
-}
-
-.popover, .popover-content, .libs-container, .lib-list {
-    background-color: #737373 !important;
+.popover, .popover-content, .libs-container, .lib-list, .popover-body, .popover-header {
+    background-color: #151515 !important;
     color: #f2f2f2 !important;
 }
 
@@ -328,13 +315,13 @@ input {
 }
 
 #socialshare .share-twitter, .share-twitter {
-    background-color: #1da1f2;
-    color: white;
+    background-color: #1da1f2 !important;
+    color: white !important;
 }
 
 #socialshare .share-reddit, .share-reddit {
-    background-color: #ff4500;
-    color: white;
+    background-color: #ff4500 !important;
+    color: white !important;
 }
 
 .share-disabled {
@@ -369,11 +356,11 @@ kbd {
 
 .prepend-options {
     border-color: #444 !important;
-    background-color: #444 !important;
+    background-color: #141414 !important;
 }
 
 .modal-content .card-body {
-    background-color: #373737 !important;
+    background-color: #141414 !important;
 }
 
 #simplecook {
@@ -419,10 +406,6 @@ div.argmenuitem span.argdescription {
     overflow-y: hidden;
 }
 
-.open-in-cppinsights * {
-    vertical-align: middle;
-}
-
 .execution-stdout {
     color: white !important;
 }
@@ -433,4 +416,37 @@ div.argmenuitem span.argdescription {
 
 .logo-sec {
     fill: #999999 !important;
+}
+
+.qb-logo-pri {
+    fill: #e2e2e2 !important;
+}
+
+.qb-logo-sec {
+    fill: #333 !important;
+}
+
+.cppi-logo-sec {
+    fill: #e2e2e2 !important;
+}
+
+a {
+    color: #45bbe0 !important;
+}
+
+.fa, .fas {
+    color: white;
+}
+
+.close:hover {
+    color: white;
+}
+
+.navbar-light .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3e%3cpath stroke='rgba(255, 255, 255, 0.5)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.navbar-light .navbar-toggler {
+    color: rgba(255,255,255,.5);
+    border-color: rgba(255,255,255,.1);
 }

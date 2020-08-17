@@ -3,6 +3,9 @@
 This document explains how to add a new library to Compiler Explorer ("CE" from here on), first for a local instance, and
 then how to submit PRs to get it into the main CE site.
 
+Note that most libraries are Header-only. This is the easiest form of library to support. If the library needs to be built,
+there are some caveats, best practices and good to knows. Consult the bottom of this page for details.
+
 ## Configuration
 
 Library configurations are part of the compiler's properties, which is done through the `etc/config/c++.*.properties` files
@@ -47,7 +50,8 @@ libs.rangesv3.url=https://github.com/ericniebler/range-v3
 ```
 
 Now, for each declared version, CE will look for a `version` key, an human readable string representing the corresponding version,
-and `path`, a list consisting of the paths to add to the inclusion path of the library.
+and `path`, a list consisting of the paths separated by colon `:` (or semicolon `;` on Windows) to add to the inclusion path of the library.
+Optionally, you can provide a `libpath`, a list consisting of paths to add to your linker path.
 
 This would leave us with: (Empty lines added for clarity. Please refrain from using them if you plan to PR us :D)
 
@@ -113,7 +117,7 @@ to be done.
 ## Adding a new library to the live site
 
 On the main CE website, libraries are installed into a `/opt/compiler-explorer/` directory by a set of scripts in the sister
-GitHub repo: https://github.com/mattgodbolt/compiler-explorer-image
+GitHub repo: https://github.com/compiler-explorer/infra
 
 In the `update_compilers` directory in that repository are a set of scripts that download and install the libraries.
 If you wish to test locally, and can create a `/opt/compiler-explorer` directory on your machine which is readable and writable by your
@@ -124,11 +128,35 @@ authors for more help.
 
 Remember to also add the library dependencies following the same steps. It's on you if those should also appear in the UI.
 
+## Adding compilers with limited library support
+
+If you have libraries that you don't want to be shown with a compiler, you can limit the libraries per compiler. By default all libraries are visible for all compilers.
+
+For example if you only want all versions of fmt, and version 0.3.0 of Ranges, you can do the following:
+```
+compiler.mycompiler.supportedLibraries=fmt:rangesv3.030
+```
+
 ## Putting it all together
 
 Hopefully that's enough to get an idea. The ideal case should be a pull request to add a couple of
-lines to the `compiler-explorer-image` to install the library, and a pull request to add a few lines to the `LANG.amazon.properties`
+lines to the `infra` repository to install the library, and a pull request to add a few lines to the `LANG.amazon.properties`
 file in this repository.
-Once that's done, remember to update [the wiki](https://github.com/mattgodbolt/compiler-explorer/wiki/Installed-libraries) with the new library, adding the library in alphabetical order, with newer versions on top.
+Once that's done, remember to update [the wiki](https://github.com/compiler-explorer/compiler-explorer/wiki/Installed-libraries) with the new library, adding the library in alphabetical order, with newer versions on top.
 
 If you feel like we could improve this document in any way, please contact us. We'd love to hear from you!
+
+
+# Adding a library that needs to be compiled to .a or .so binaries
+
+Supporting library binaries are a complicated matter.
+
+For "C" shared libraries is relatively easy, is mostly a "solved problem", and the most common way of connecting software and libraries together. OpenSSL has .so's to link against for x86-64 and x86. However, we currently do not offer any other platforms, and it gets a lot harder if we tried to support that. Not to mention we currently do not have hardware in the cloud for other platforms to actually execute your code.
+
+For C++ libraries, static or shared, there is no standard or common way of building libraries. To be sure linking will work, we have to rebuild the libraries for every compiler we support. We try to support at least x86-64, x86 and if that's not possible - the default target of the compiler. For all llvm/clang based compilers, we also try to build the libraries for libc++, just to be sure that doesn't give any runtime issues.
+
+There are also some specific compiler flags that cause ABI incompatibility, but we're still looking for common cases; if you have any use-cases of flags that causes linking or runtime errors, please let us know.
+
+For us to have the possibility of crosscompiling with multiple compilers, it's recommended to be able to build with CMake. CMake by default has support to provide different flags during compilation. Makefiles can provide ways for doing the same, but often they have variables and flags that cannot be changed. If you're a library developer, please take into account that we will need ways to set at least CC, CXX, CXXFLAGS. Be also aware that we will probably supply -Wl-rpath's and/or -L to ensure that the library knows where to find their dependencies.
+
+Because of the amount of combinations we need to produce, only the later tagged versions of most libraries have priority in providing builds for. Daily trunk/master versions are out as well, until we figure out a way to efficiently provide builds for this.

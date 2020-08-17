@@ -51,10 +51,13 @@ To specify a compilation request as a JSON document, post it as the appropriate
  type and send an object of the form:
 ```JSON
 {
-    "source": "Source to compile",
+    "source": "<Source-to-compile>",
     "options": {
-        "userArguments": "Compiler flags",
-        "compilerOptions": {},
+        "userArguments": "<Compiler-flags>",
+        "compilerOptions": {
+              "skipAsm": false,
+              "executorRequest": false
+        },
         "filters": {
              "binary": false,
              "commentOnly": true,
@@ -73,11 +76,13 @@ To specify a compilation request as a JSON document, post it as the appropriate
              {"id": "range-v3", "version": "trunk"},
              {"id": "fmt", "version": "400"}
         ]
-    }
+    },
+    "lang": "<lang-id (Optional)>",
+    "allowStoreCodeDebug": true
 }
 ```
 
-Execution Only request:
+Execution Only request example:
 ```JSON
 {
     "source": "int main () { return 1; }",
@@ -85,7 +90,7 @@ Execution Only request:
     "options": {
         "userArguments": "-O3",
         "executeParameters": {
-            "args": "arg1",
+            "args": ["arg1", "arg2"],
             "stdin": "hello, world!"
         },
         "compilerOptions": {
@@ -193,7 +198,7 @@ If JSON is present in the request's `Accept` header, the compilation results
 
 ### `POST /shortener` - saves given state *forever* to a shortlink and returns the unique id for the link
 
-The body of this post should be in the format of a [ClientState](https://github.com/mattgodbolt/compiler-explorer/blob/master/lib/clientstate.js)
+The body of this post should be in the format of a [ClientState](https://github.com/compiler-explorer/compiler-explorer/blob/master/lib/clientstate.js)
 Be sure that the Content-Type of your post is application/json
 
 An example of one the easiest forms of a clientstate:
@@ -235,6 +240,18 @@ Returns:
 
 The storedId can be used in the api call /api/shortlinkinfo/<id> and to open in the website with a /z/<id> shortlink.
 
+### `GET /z/<id>` - Opens the website from a shortlink
+
+This call opens the website in a state that was previously saved using the built-in shortener.
+
+
+### `GET /z/<id>/code/<sourceid>` - Returns just the sourcecode from a shortlink
+
+This call returns plain/text for the code that was previously saved using the built-in shortener.
+
+If there were multiple editors during the saved session, you can retreive them by setting <sourceid> to 1, 2, 3, etcetera, otherwise <sourceid> can be set to 1.
+
+
 ### `GET /clientstate/<base64>` - Opens the website in a given state
 
 This call is to open the website with a given state (without having to store the state first with /shortener)
@@ -249,3 +266,4 @@ Here are some examples of projects using the Compiler Explorer API:
 * [API in Delphi by partouf](https://github.com/partouf/compilerexplorer-api) (Delphi)
 * [QTCreator Plugin by dobokirisame](https://github.com/dobokirisame/CompilerExplorer) (C++)
 * [CLion plugin by ogrebenyuk](https://github.com/ogrebenyuk/compilerexplorer) (Java)
+* [QCompilerExplorer - frontend in Qt](https://github.com/Waqar144/QCompilerExplorer) (C++)

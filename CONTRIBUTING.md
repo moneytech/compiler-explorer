@@ -1,6 +1,6 @@
 # Contributing to Compiler Explorer
 
-First of, if you're reading this: thank you! Even considering contributing to
+First off, if you're reading this: thank you! Even considering contributing to
  **Compiler Explorer** is very much appreciated!
 Before we go too far, an apology: **Compiler Explorer** grew out of a bit of
  hacky JavaScript into a pretty large and well-used project pretty quickly.
@@ -14,7 +14,7 @@ Please be forgiving of that, and be ready to help in improving that.
 **Compiler Explorer** targets the latest [Node.js](https://nodejs.org/) LTS,
  so it's better if you do so as well when testing your changes locally.
 
-Nonetheless, it _should_ run in everything post-Node.js 8. [Contact us] if
+Nonetheless, it _should_ run in everything post-Node.js 11. [Contact us] if
  this is not the case for you.
 
 ## In brief

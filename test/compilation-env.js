@@ -23,7 +23,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const chai = require('chai');
-const chaiAsPromised = require("chai-as-promised");
+const chaiAsPromised = require('chai-as-promised');
 const CompilationEnvironment = require('../lib/compilation-env');
 const properties = require('../lib/properties');
 
@@ -31,14 +31,18 @@ chai.use(chaiAsPromised);
 chai.should();
 
 const props = {
-    optionsWhitelistRe: '.*',
-    optionsBlacklistRe: '^(-W[alp],)?((-wrapper|-fplugin.*|-specs|-load|-plugin|(@.*)|-I|-i)(=.*)?|--)$',
-    cacheConfig: 'InMemory(10)'
+    optionsAllowedRe: '.*',
+    optionsForbiddenRe: '^(-W[alp],)?((-wrapper|-fplugin.*|-specs|-load|-plugin|(@.*)|-I|-i)(=.*)?|--)$',
+    cacheConfig: 'InMemory(10)',
 };
 
-const compilerProps = new properties.CompilerProps({}, properties.fakeProps(props));
-
 describe('Compilation environment', () => {
+    let compilerProps;
+
+    before(() => {
+        compilerProps = new properties.CompilerProps({}, properties.fakeProps(props));
+    });
+
     it('Should cache by default', () => {
         const ce = new CompilationEnvironment(compilerProps);
         return ce.cacheGet('foo').should.eventually.equal(null)
@@ -47,13 +51,13 @@ describe('Compilation environment', () => {
             .then(() => ce.cacheGet('baz').should.eventually.equal(null));
     });
     it('Should cache when asked', () => {
-        const ce = new CompilationEnvironment(compilerProps, true);
+        const ce = new CompilationEnvironment(compilerProps, undefined, true);
         return ce.cacheGet('foo').should.eventually.equal(null)
             .then(() => ce.cachePut('foo', {res: 'bar'}))
             .then(() => ce.cacheGet('foo').should.eventually.eql({res: 'bar'}));
     });
     it('Shouldn\'t cache when asked', () => {
-        const ce = new CompilationEnvironment(compilerProps, false);
+        const ce = new CompilationEnvironment(compilerProps, undefined, false);
         return ce.cacheGet('foo').should.eventually.equal(null)
             .then(() => ce.cachePut('foo', {res: 'bar'}))
             .then(() => ce.cacheGet('foo').should.eventually.equal(null));

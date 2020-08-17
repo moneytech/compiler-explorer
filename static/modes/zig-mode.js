@@ -22,7 +22,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+'use strict';
 var monaco = require('monaco-editor');
 
 function definition() {
@@ -31,25 +31,26 @@ function definition() {
 
         keywords: [
             'const', 'var', 'extern', 'packed', 'export', 'pub', 'noalias', 'inline',
-            'comptime', 'nakedcc', 'stdcallcc', 'volatile', 'align', 'section',
+            'comptime', 'nakedcc', 'stdcallcc', 'volatile', 'align', 'section', 'linksection',
             'struct', 'enum', 'union',
             'break', 'return', 'continue', 'asm', 'defer', 'errdefer', 'unreachable',
             'try', 'catch', 'async', 'await', 'suspend', 'resume', 'cancel',
             'if', 'else', 'switch', 'and', 'or', 'orelse',
             'while', 'for',
-            'null', 'undefined', 'this',
-            'fn', 'use', 'test'
+            'null', 'undefined',
+            'fn', 'usingnamespace', 'use', 'test',
+            'this',
         ],
         typeKeywords: [
-            'bool', 'f32', 'f64', 'f128', 'void', 'noreturn', 'type', 'error', 'promise',
+            'bool', 'f32', 'f64', 'f128', 'void', 'noreturn', 'type', 'error', 'anyerror', 'promise', 'anyframe',
             'isize', 'usize', 'c_short', 'c_ushort', 'c_int', 'c_uint', 'c_long', 'c_ulong',
-            'c_longlong', 'c_ulonglong', 'c_longdouble', 'c_void'
+            'c_longlong', 'c_ulonglong', 'c_longdouble', 'c_void',
         ],
         operators: [
             '+', '+%', '-', '-%', '/', '*', '*%', '=', '^', '&', '?', '|',
             '!', '>', '<', '%', '<<', '<<%', '>>',
             '+=', '+%=', '-=', '-%=', '/=', '*=', '*%=', '==', '^=', '&=',
-            '?=', '|=', '!=', '>=', '<=', '%=', '<<=', '<<%=', '>>='
+            '?=', '|=', '!=', '>=', '<=', '%=', '<<=', '<<%=', '>>=',
         ],
 
         symbols: /[=><!~?:&|+\-*/^%]+/,
@@ -66,8 +67,8 @@ function definition() {
                     cases: {
                         '@typeKeywords': 'keyword',
                         '@keywords': 'keyword',
-                        '@default': 'identifier'
-                    }
+                        '@default': 'identifier',
+                    },
                 }],
 
                 [/@[a-zA-Z_$]*/, 'builtin.identifier'],
@@ -83,8 +84,8 @@ function definition() {
                 [/@symbols/, {
                     cases: {
                         '@operators': 'operator',
-                        '@default': ''
-                    }
+                        '@default': '',
+                    },
                 }],
 
                 // numbers
@@ -105,7 +106,7 @@ function definition() {
                 // characters
                 [/'[^\\']'/, 'string'],
                 [/(')(@escapes)(')/, ['string', 'string.escape', 'string']],
-                [/'/, 'string.invalid']
+                [/'/, 'string.invalid'],
             ],
 
             whitespace: [
@@ -113,22 +114,22 @@ function definition() {
                 [/\/\*/, 'comment', '@comment'],
                 [/\/\+/, 'comment', '@comment'],
                 [/\/\/.*$/, 'comment'],
-                [/\t/, 'comment.invalid']
+                [/\t/, 'comment.invalid'],
             ],
 
             comment: [
                 [/[^/*]+/, 'comment'],
                 [/\/\*/, 'comment.invalid'],
-                [/[/*]/, 'comment']
+                [/[/*]/, 'comment'],
             ],
 
             string: [
                 [/[^\\"]+/, 'string'],
                 [/@escapes/, 'string.escape'],
                 [/\\./, 'string.escape.invalid'],
-                [/"/, 'string', '@pop']
-            ]
-        }
+                [/"/, 'string', '@pop'],
+            ],
+        },
     };
 }
 

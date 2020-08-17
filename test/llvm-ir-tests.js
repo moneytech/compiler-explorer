@@ -23,74 +23,77 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 const chai = require('chai');
-const chaiAsPromised = require("chai-as-promised");
+const chaiAsPromised = require('chai-as-promised');
 const LLCCompiler = require('../lib/compilers/llc');
 const OPTCompiler = require('../lib/compilers/opt');
-const CompilationEnvironment = require('../lib/compilation-env');
-const properties = require('../lib/properties');
+const {makeCompilationEnvironment} = require('./utils');
 
 chai.use(chaiAsPromised);
 chai.should();
 
 
 const languages = {
-    llvm: {id: 'llvm'}
+    llvm: {id: 'llvm'},
 };
 
-const compilerProps = new properties.CompilerProps(languages, properties.fakeProps({}));
+let ce;
 
 function createCompiler(compiler) {
-    const ce = new CompilationEnvironment(compilerProps);
+    if (ce === undefined) {
+        ce = makeCompilationEnvironment({languages});
+    }
+
     const info = {
         exe: null,
         remote: true,
-        lang: languages.llvm.id
+        lang: languages.llvm.id,
     };
 
     return new compiler(info, ce);
 }
 
-describe('llc options for at&t assembly', function () {
-    let compiler = createCompiler(LLCCompiler);
+describe('LLVM IR Compiler', () => {
+    let compiler;
 
-    compiler.optionsForFilter({
-        'intel': false,
-        'binary': false
-    }, 'output.s').should.eql(['-o', 'output.s']);
-});
+    before(() => {
+        compiler = createCompiler(LLCCompiler);
+    });
 
-describe('llc options for intel assembly', function () {
-    let compiler = createCompiler(LLCCompiler);
 
-    compiler.optionsForFilter({
-        'intel': true,
-        'binary': false
-    }, 'output.s').should.eql(['-o', 'output.s', '-x86-asm-syntax=intel']);
-});
+    it('llc options for at&t assembly', function () {
+        compiler.optionsForFilter({
+            intel: false,
+            binary: false,
+        }, 'output.s').should.eql(['-o', 'output.s']);
+    });
 
-describe('llc options for at&t binary', function () {
-    let compiler = createCompiler(LLCCompiler);
+    it('llc options for intel assembly', function () {
+        compiler.optionsForFilter({
+            intel: true,
+            binary: false,
+        }, 'output.s').should.eql(['-o', 'output.s', '-x86-asm-syntax=intel']);
+    });
 
-    compiler.optionsForFilter({
-        'intel': false,
-        'binary': true
-    }, 'output.s').should.eql(['-o', 'output.s', '-filetype=obj']);
-});
+    it('llc options for at&t binary', function () {
+        compiler.optionsForFilter({
+            intel: false,
+            binary: true,
+        }, 'output.s').should.eql(['-o', 'output.s', '-filetype=obj']);
+    });
 
-describe('llc options for intel binary', function () {
-    let compiler = createCompiler(LLCCompiler);
+    it('llc options for intel binary', function () {
+        compiler.optionsForFilter({
+            intel: true,
+            binary: true,
+        }, 'output.s').should.eql(['-o', 'output.s', '-filetype=obj']);
+    });
 
-    compiler.optionsForFilter({
-        'intel': true,
-        'binary': true
-    }, 'output.s').should.eql(['-o', 'output.s', '-filetype=obj']);
-});
+    it('opt options', function () {
+        const compiler = createCompiler(OPTCompiler);
 
-describe('opt options', function () {
-    let compiler = createCompiler(OPTCompiler);
-
-    compiler.optionsForFilter({
-        'intel': false,
-        'binary': false
-    }, 'output.s').should.eql(['-o', 'output.s', '-S']);
+        compiler.optionsForFilter({
+            intel: false,
+            binary: false,
+        }, 'output.s').should.eql(['-o', 'output.s', '-S']);
+    });
 });

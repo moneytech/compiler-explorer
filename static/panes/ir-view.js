@@ -22,7 +22,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-"use strict";
+'use strict';
 
 var FontScale = require('../fontscale');
 var monaco = require('monaco-editor');
@@ -40,9 +40,9 @@ function Ir(hub, container, state) {
     this.decorations = {};
     this.prevDecorations = [];
 
-    this.irEditor = monaco.editor.create(this.domRoot.find(".monaco-placeholder")[0], {
+    this.irEditor = monaco.editor.create(this.domRoot.find('.monaco-placeholder')[0], {
         fontFamily: 'Consolas, "Liberation Mono", Courier, monospace',
-        value: "",
+        value: '',
         scrollBeyondLastLine: false,
         language: 'llvm-ir',
         readOnly: true,
@@ -51,14 +51,17 @@ function Ir(hub, container, state) {
         quickSuggestions: false,
         fixedOverflowWidgets: true,
         minimap: {
-            maxColumn: 80
+            maxColumn: 80,
         },
-        lineNumbersMinChars: 3
+        lineNumbersMinChars: 3,
     });
 
     this._compilerid = state.id;
     this._compilerName = state.compilerName;
     this._editorid = state.editorid;
+
+    this.awaitingInitialResults = false;
+    this.selection = state.selection;
 
     this.settings = {};
 
@@ -79,7 +82,7 @@ function Ir(hub, container, state) {
     ga.proxy('send', {
         hitType: 'event',
         eventCategory: 'OpenViewPane',
-        eventAction: 'Ir'
+        eventAction: 'Ir',
     });
 }
 
@@ -98,14 +101,14 @@ Ir.prototype.initEditorActions = function () {
                 // a null file means it was the user's source
                 this.eventHub.emit('editorLinkLine', this._editorid, source.line, -1, true);
             }
-        }, this)
+        }, this),
     });
 };
 
 Ir.prototype.initButtons = function (state) {
     this.fontScale = new FontScale(this.domRoot, state, this.irEditor);
 
-    this.topBar = this.domRoot.find(".top-bar");
+    this.topBar = this.domRoot.find('.top-bar');
 };
 
 Ir.prototype.initCallbacks = function () {
@@ -113,6 +116,12 @@ Ir.prototype.initCallbacks = function () {
     this.mouseMoveThrottledFunction = _.throttle(_.bind(this.onMouseMove, this), 50);
     this.irEditor.onMouseMove(_.bind(function (e) {
         this.mouseMoveThrottledFunction(e);
+    }, this));
+
+    this.cursorSelectionThrottledFunction =
+        _.throttle(_.bind(this.onDidChangeCursorSelection, this), 500);
+    this.irEditor.onDidChangeCursorSelection(_.bind(function (e) {
+        this.cursorSelectionThrottledFunction(e);
     }, this));
 
     this.fontScale.on('change', _.bind(this.updateState, this));
@@ -137,7 +146,7 @@ Ir.prototype.resize = function () {
     var topBarHeight = this.topBar.outerHeight(true);
     this.irEditor.layout({
         width: this.domRoot.width(),
-        height: this.domRoot.height() - topBarHeight
+        height: this.domRoot.height() - topBarHeight,
     });
 };
 
@@ -146,7 +155,7 @@ Ir.prototype.onCompileResponse = function (id, compiler, result) {
     if (result.hasIrOutput) {
         this.showIrResults(result.irOutput);
     } else if (compiler.supportsIrView) {
-        this.showIrResults([{text: "<No output>"}]);
+        this.showIrResults([{text: '<No output>'}]);
     }
 
     // Why call this explicitly instead of just listening to the "colours" event?
@@ -155,7 +164,7 @@ Ir.prototype.onCompileResponse = function (id, compiler, result) {
 };
 
 Ir.prototype.getPaneName = function () {
-    return this._compilerName + " IR Viewer (Editor #" + this._editorid + ", Compiler #" + this._compilerid + ")";
+    return this._compilerName + ' IR Viewer (Editor #' + this._editorid + ', Compiler #' + this._compilerid + ')';
 };
 
 Ir.prototype.setTitle = function () {
@@ -165,7 +174,16 @@ Ir.prototype.setTitle = function () {
 Ir.prototype.showIrResults = function (irCode) {
     if (!this.irEditor) return;
     this.irCode = irCode;
-    this.irEditor.getModel().setValue(irCode.length ? _.pluck(irCode, 'text').join('\n') : "<No IR generated>");
+    this.irEditor.getModel().setValue(irCode.length ? _.pluck(irCode, 'text').join('\n') : '<No IR generated>');
+
+    if (!this.awaitingInitialResults) {
+        if (this.selection) {
+            this.irEditor.setSelection(this.selection);
+            this.irEditor.revealLinesInCenter(this.selection.startLineNumber,
+                this.selection.endLineNumber);
+        }
+        this.awaitingInitialResults = true;
+    }
 };
 
 Ir.prototype.onCompiler = function (id, compiler, options, editorid) {
@@ -174,7 +192,7 @@ Ir.prototype.onCompiler = function (id, compiler, options, editorid) {
         this._editorid = editorid;
         this.setTitle();
         if (compiler && !compiler.supportsIrView) {
-            this.irEditor.setValue("<IR output is not supported for this compiler>");
+            this.irEditor.setValue('<IR output is not supported for this compiler>');
         }
     }
 };
@@ -211,7 +229,8 @@ Ir.prototype.updateState = function () {
 Ir.prototype.currentState = function () {
     var state = {
         id: this._compilerid,
-        editorid: this._editorid
+        editorid: this._editorid,
+        selection: this.selection,
     };
     this.fontScale.addState(state);
     return state;
@@ -233,9 +252,10 @@ Ir.prototype.onSettingsChange = function (newSettings) {
     this.irEditor.updateOptions({
         contextmenu: newSettings.useCustomContextMenu,
         minimap: {
-            enabled: newSettings.showMinimap
+            enabled: newSettings.showMinimap,
         },
-        fontFamily: newSettings.editorsFFont
+        fontFamily: newSettings.editorsFFont,
+        fontLigatures: newSettings.editorsFLigatures,
     });
 };
 
@@ -252,6 +272,14 @@ Ir.prototype.onMouseMove = function (e) {
         }
     }
 };
+
+Ir.prototype.onDidChangeCursorSelection = function (e) {
+    if (this.awaitingInitialResults) {
+        this.selection = e.selection;
+        this.updateState();
+    }
+};
+
 
 Ir.prototype.updateDecorations = function () {
     this.prevDecorations = this.irEditor.deltaDecorations(
@@ -280,8 +308,8 @@ Ir.prototype.onPanesLinkLine = function (compilerId, lineNumber, revealLine, sen
                 options: {
                     isWholeLine: true,
                     linesDecorationsClassName: 'linked-code-decoration-margin',
-                    className: lineClass
-                }
+                    className: lineClass,
+                },
             };
         });
         if (this.linkedFadeTimeoutId !== -1) {
@@ -297,10 +325,10 @@ Ir.prototype.onPanesLinkLine = function (compilerId, lineNumber, revealLine, sen
 
 Ir.prototype.close = function () {
     this.eventHub.unsubscribe();
-    this.eventHub.emit("irViewClosed", this._compilerid);
+    this.eventHub.emit('irViewClosed', this._compilerid);
     this.irEditor.dispose();
 };
 
 module.exports = {
-    Ir: Ir
+    Ir: Ir,
 };
